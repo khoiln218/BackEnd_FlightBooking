@@ -1,0 +1,166 @@
+{
+  "info": {
+    "name": "Flight Booking - Airline",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000" },
+    { "key": "adminToken", "value": "" },
+    { "key": "customerToken", "value": "" },
+    { "key": "createdAirlineId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Setup - Login Admin",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "const res = pm.response.json();",
+        "pm.collectionVariables.set('adminToken', res.token);",
+        "pm.test('Status 200', () => pm.response.to.have.status(200));"
+      ]}}],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/auth/login",
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@flightbooking.local\",\n  \"password\": \"Admin@123\"\n}", "options": { "raw": { "language": "json" } } }
+      }
+    },
+    {
+      "name": "Setup - Login Customer",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "const res = pm.response.json();",
+        "pm.collectionVariables.set('customerToken', res.token);",
+        "pm.test('Status 200', () => pm.response.to.have.status(200));"
+      ]}}],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/auth/login",
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"nguyenvana@example.local\",\n  \"password\": \"Customer@123\"\n}", "options": { "raw": { "language": "json" } } }
+      }
+    },
+    {
+      "name": "Get All Airlines (Public)",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status 200', () => pm.response.to.have.status(200));",
+        "pm.test('Has data array', () => pm.expect(pm.response.json().data).to.be.an('array'));"
+      ]}}],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/airlines"
+      }
+    },
+    {
+      "name": "Create Airline - Admin (Success)",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status 201', () => pm.response.to.have.status(201));",
+        "const res = pm.response.json();",
+        "pm.test('Has airline.id', () => pm.expect(res.airline).to.have.property('id'));",
+        "pm.collectionVariables.set('createdAirlineId', res.airline.id);"
+      ]}}],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/admin/airlines",
+        "body": { "mode": "raw", "raw": "{\n  \"name\": \"Pacific Airlines\",\n  \"code\": \"PAC\",\n  \"logo_url\": \"/logos/pac.png\"\n}", "options": { "raw": { "language": "json" } } }
+      }
+    },
+    {
+      "name": "Create Airline - Duplicate Code (409)",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status 409', () => pm.response.to.have.status(409));"
+      ]}}],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/admin/airlines",
+        "body": { "mode": "raw", "raw": "{\n  \"name\": \"Vietnam Airlines Duplicate\",\n  \"code\": \"VNA\"\n}", "options": { "raw": { "language": "json" } } }
+      }
+    },
+    {
+      "name": "Create Airline - Customer (403)",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status 403', () => pm.response.to.have.status(403));"
+      ]}}],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{customerToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/admin/airlines",
+        "body": { "mode": "raw", "raw": "{\n  \"name\": \"Hacker Airline\",\n  \"code\": \"HAK\"\n}", "options": { "raw": { "language": "json" } } }
+      }
+    },
+    {
+      "name": "Create Airline - No Token (401)",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status 401', () => pm.response.to.have.status(401));"
+      ]}}],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/admin/airlines",
+        "body": { "mode": "raw", "raw": "{\n  \"name\": \"No Auth\",\n  \"code\": \"NOA\"\n}", "options": { "raw": { "language": "json" } } }
+      }
+    },
+    {
+      "name": "Update Airline - Admin (Success)",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status 200', () => pm.response.to.have.status(200));"
+      ]}}],
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/admin/airlines/{{createdAirlineId}}",
+        "body": { "mode": "raw", "raw": "{\n  \"name\": \"Pacific Airlines Updated\"\n}", "options": { "raw": { "language": "json" } } }
+      }
+    },
+    {
+      "name": "Update Airline - Not Found (404)",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status 404', () => pm.response.to.have.status(404));"
+      ]}}],
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/admin/airlines/999999",
+        "body": { "mode": "raw", "raw": "{\n  \"name\": \"Ghost\"\n}", "options": { "raw": { "language": "json" } } }
+      }
+    },
+    {
+      "name": "Delete Airline - Admin (Success)",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status 200', () => pm.response.to.have.status(200));"
+      ]}}],
+      "request": {
+        "method": "DELETE",
+        "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+        "url": "{{baseUrl}}/api/admin/airlines/{{createdAirlineId}}"
+      }
+    },
+    {
+      "name": "Delete Airline - Has Flights (409)",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status 409', () => pm.response.to.have.status(409));"
+      ]}}],
+      "request": {
+        "method": "DELETE",
+        "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+        "url": "{{baseUrl}}/api/admin/airlines/1"
+      }
+    }
+  ]
+}

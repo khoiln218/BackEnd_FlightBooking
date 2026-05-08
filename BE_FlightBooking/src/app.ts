@@ -11,6 +11,8 @@ import flightRoutes, { adminFlightRoutes } from './FlightCtrl/flight.routes';
 import bookingRoutes, { adminBookingRoutes } from './BookingCtrl/booking.routes';
 import paymentRoutes from './PaymentCtrl/payment.routes';
 import reportRoutes from './ReportCtrl/report.routes';
+import airportRoutes, { adminAirportRoutes } from './AirportCtrl/airport.routes';
+import airlineRoutes, { adminAirlineRoutes } from './AirlineCtrl/airline.routes';
 
 const app = express();
 
@@ -47,11 +49,15 @@ app.get('/api/health', (_req, res) => {
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/airports', airportRoutes);
+app.use('/api/airlines', airlineRoutes);
 app.use('/api/flights', flightRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/admin', adminFlightRoutes);
 app.use('/api/admin', adminBookingRoutes);
+app.use('/api/admin', adminAirportRoutes);
+app.use('/api/admin', adminAirlineRoutes);
 app.use('/api/admin/reports', reportRoutes);
 
 // Global error handler (must be last middleware)

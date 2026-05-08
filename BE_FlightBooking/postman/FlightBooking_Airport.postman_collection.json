@@ -1,0 +1,181 @@
+{
+  "info": {
+    "name": "Flight Booking - Airport",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:4000" },
+    { "key": "adminToken", "value": "" },
+    { "key": "customerToken", "value": "" },
+    { "key": "createdAirportId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Setup - Login Admin",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "const res = pm.response.json();",
+        "pm.collectionVariables.set('adminToken', res.token);",
+        "pm.test('Status 200', () => pm.response.to.have.status(200));"
+      ]}}],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/auth/login",
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"admin@flightbooking.local\",\n  \"password\": \"Admin@123\"\n}", "options": { "raw": { "language": "json" } } }
+      }
+    },
+    {
+      "name": "Setup - Login Customer",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "const res = pm.response.json();",
+        "pm.collectionVariables.set('customerToken', res.token);",
+        "pm.test('Status 200', () => pm.response.to.have.status(200));"
+      ]}}],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/auth/login",
+        "body": { "mode": "raw", "raw": "{\n  \"email\": \"nguyenvana@example.local\",\n  \"password\": \"Customer@123\"\n}", "options": { "raw": { "language": "json" } } }
+      }
+    },
+    {
+      "name": "Get All Airports (Public)",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status 200', () => pm.response.to.have.status(200));",
+        "pm.test('Has data array', () => pm.expect(pm.response.json().data).to.be.an('array'));"
+      ]}}],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/airports"
+      }
+    },
+    {
+      "name": "Create Airport - Admin (Success)",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status 201', () => pm.response.to.have.status(201));",
+        "const res = pm.response.json();",
+        "pm.test('Has airport.id', () => pm.expect(res.airport).to.have.property('id'));",
+        "pm.collectionVariables.set('createdAirportId', res.airport.id);"
+      ]}}],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/admin/airports",
+        "body": { "mode": "raw", "raw": "{\n  \"name\": \"Phu Bai International\",\n  \"code\": \"HUI\",\n  \"city\": \"Hue\",\n  \"country\": \"Viet Nam\"\n}", "options": { "raw": { "language": "json" } } }
+      }
+    },
+    {
+      "name": "Create Airport - Duplicate Code (409)",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status 409', () => pm.response.to.have.status(409));"
+      ]}}],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/admin/airports",
+        "body": { "mode": "raw", "raw": "{\n  \"name\": \"Duplicate SGN\",\n  \"code\": \"SGN\",\n  \"city\": \"Test\",\n  \"country\": \"Test\"\n}", "options": { "raw": { "language": "json" } } }
+      }
+    },
+    {
+      "name": "Create Airport - Invalid Code (400)",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status 400', () => pm.response.to.have.status(400));"
+      ]}}],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/admin/airports",
+        "body": { "mode": "raw", "raw": "{\n  \"name\": \"Bad\",\n  \"code\": \"ab\",\n  \"city\": \"Test\",\n  \"country\": \"Test\"\n}", "options": { "raw": { "language": "json" } } }
+      }
+    },
+    {
+      "name": "Create Airport - Customer (403)",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status 403', () => pm.response.to.have.status(403));"
+      ]}}],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{customerToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/admin/airports",
+        "body": { "mode": "raw", "raw": "{\n  \"name\": \"Hacker\",\n  \"code\": \"HAK\",\n  \"city\": \"Test\",\n  \"country\": \"Test\"\n}", "options": { "raw": { "language": "json" } } }
+      }
+    },
+    {
+      "name": "Create Airport - No Token (401)",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status 401', () => pm.response.to.have.status(401));"
+      ]}}],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/admin/airports",
+        "body": { "mode": "raw", "raw": "{\n  \"name\": \"No Auth\",\n  \"code\": \"NOA\",\n  \"city\": \"Test\",\n  \"country\": \"Test\"\n}", "options": { "raw": { "language": "json" } } }
+      }
+    },
+    {
+      "name": "Update Airport - Admin (Success)",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status 200', () => pm.response.to.have.status(200));"
+      ]}}],
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/admin/airports/{{createdAirportId}}",
+        "body": { "mode": "raw", "raw": "{\n  \"name\": \"Phu Bai International Updated\"\n}", "options": { "raw": { "language": "json" } } }
+      }
+    },
+    {
+      "name": "Update Airport - Not Found (404)",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status 404', () => pm.response.to.have.status(404));"
+      ]}}],
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "url": "{{baseUrl}}/api/admin/airports/999999",
+        "body": { "mode": "raw", "raw": "{\n  \"name\": \"Ghost\"\n}", "options": { "raw": { "language": "json" } } }
+      }
+    },
+    {
+      "name": "Delete Airport - Admin (Success)",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status 200', () => pm.response.to.have.status(200));"
+      ]}}],
+      "request": {
+        "method": "DELETE",
+        "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+        "url": "{{baseUrl}}/api/admin/airports/{{createdAirportId}}"
+      }
+    },
+    {
+      "name": "Delete Airport - Has Flights (409)",
+      "event": [{ "listen": "test", "script": { "exec": [
+        "pm.test('Status 409', () => pm.response.to.have.status(409));"
+      ]}}],
+      "request": {
+        "method": "DELETE",
+        "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+        "url": "{{baseUrl}}/api/admin/airports/1"
+      }
+    }
+  ]
+}
