@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import supabase from '../config/database';
 import { AppError } from '../shared/utils/AppError';
+import { debugLog, errorLog } from '../shared/utils/debug';
 import { Airline, CreateAirlineRequest, UpdateAirlineRequest } from './airline.types';
 
 /**
@@ -9,16 +10,19 @@ import { Airline, CreateAirlineRequest, UpdateAirlineRequest } from './airline.t
  */
 export async function getAllAirlines(_req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
+    debugLog('Airline', 'getAllAirlines - entry');
+
     const { data, error } = await supabase
       .from('airlines')
       .select('id, name, code, logo_url')
       .order('name', { ascending: true });
 
     if (error) {
-      console.error('[Airline] getAllAirlines - error:', error.message);
+      errorLog('Airline', 'getAllAirlines', 'error:', error.message);
       throw new AppError(error.message, 500);
     }
 
+    debugLog('Airline', 'getAllAirlines - success, count:', (data ?? []).length);
     res.status(200).json({ data: (data ?? []) as Airline[] });
   } catch (error) {
     next(error);
@@ -32,7 +36,7 @@ export async function getAllAirlines(_req: Request, res: Response, next: NextFun
 export async function createAirline(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { name, code, logo_url } = req.body as CreateAirlineRequest;
-    console.log('[Airline] createAirline - name:', name, 'code:', code);
+    debugLog('Airline', 'createAirline - name:', name, 'code:', code);
 
     const { data, error } = await supabase
       .from('airlines')
@@ -41,11 +45,12 @@ export async function createAirline(req: Request, res: Response, next: NextFunct
       .single();
 
     if (error) {
-      console.error('[Airline] createAirline - error:', error.message, 'code:', error.code);
+      errorLog('Airline', 'createAirline', 'error:', error.message, 'code:', error.code);
       if (error.code === '23505') throw new AppError('Mã hãng bay đã tồn tại', 409);
       throw new AppError(error.message, 500);
     }
 
+    debugLog('Airline', 'createAirline - success, airlineId:', data.id, 'code:', data.code);
     res.status(201).json({ airline: data });
   } catch (error) {
     next(error);
@@ -60,6 +65,7 @@ export async function updateAirline(req: Request, res: Response, next: NextFunct
   try {
     const { id } = req.params;
     const data = req.body as UpdateAirlineRequest;
+    debugLog('Airline', 'updateAirline - id:', id, 'fields:', Object.keys(data));
 
     const allowedFields: (keyof UpdateAirlineRequest)[] = ['name', 'code', 'logo_url'];
     const updateData: Record<string, string | null> = {};
@@ -80,7 +86,7 @@ export async function updateAirline(req: Request, res: Response, next: NextFunct
       .select();
 
     if (error) {
-      console.error('[Airline] updateAirline - error:', error.message, 'code:', error.code);
+      errorLog('Airline', 'updateAirline', 'error:', error.message, 'code:', error.code);
       if (error.code === '23505') throw new AppError('Mã hãng bay đã tồn tại', 409);
       throw new AppError(error.message, 500);
     }
@@ -89,6 +95,7 @@ export async function updateAirline(req: Request, res: Response, next: NextFunct
       throw new AppError('Hãng bay không tồn tại', 404);
     }
 
+    debugLog('Airline', 'updateAirline - success, airlineId:', updated[0].id);
     res.status(200).json({ airline: updated[0] });
   } catch (error) {
     next(error);
@@ -102,6 +109,7 @@ export async function updateAirline(req: Request, res: Response, next: NextFunct
 export async function deleteAirline(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { id } = req.params;
+    debugLog('Airline', 'deleteAirline - id:', id);
 
     const { data, error } = await supabase
       .from('airlines')
@@ -110,7 +118,7 @@ export async function deleteAirline(req: Request, res: Response, next: NextFunct
       .select();
 
     if (error) {
-      console.error('[Airline] deleteAirline - error:', error.message, 'code:', error.code);
+      errorLog('Airline', 'deleteAirline', 'error:', error.message, 'code:', error.code);
       // 23503 = FK violation (còn flights tham chiếu)
       if (error.code === '23503') {
         throw new AppError('Không thể xóa hãng bay đang có chuyến bay', 409);
@@ -122,6 +130,7 @@ export async function deleteAirline(req: Request, res: Response, next: NextFunct
       throw new AppError('Hãng bay không tồn tại', 404);
     }
 
+    debugLog('Airline', 'deleteAirline - success, id:', id);
     res.status(200).json({ message: 'Xóa hãng bay thành công' });
   } catch (error) {
     next(error);

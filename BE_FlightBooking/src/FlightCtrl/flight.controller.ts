@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import supabase from '../config/database';
 import { AppError } from '../shared/utils/AppError';
+import { debugLog, errorLog } from '../shared/utils/debug';
 import {
   FlightSearchQuery,
   FlightDetail,
@@ -13,7 +14,7 @@ import { PaginatedResult } from '../shared/types/common.types';
 export async function searchFlights(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const query = req.query as unknown as FlightSearchQuery;
-    console.log('[Flight] searchFlights - departure:', query.departure, 'arrival:', query.arrival, 'date:', query.departureDate);
+    debugLog('Flight', 'searchFlights - departure:', query.departure, 'arrival:', query.arrival, 'date:', query.departureDate);
     const page = Number(query.page) || 1;
     const limit = Number(query.limit) || 20;
     const offset = (page - 1) * limit;
@@ -112,7 +113,7 @@ export async function searchFlights(req: Request, res: Response, next: NextFunct
       totalPages: Math.ceil(total / limit),
     };
 
-    console.log('[Flight] searchFlights - found:', total, 'flights, page:', page);
+    debugLog('Flight', 'searchFlights - found:', total, 'flights, page:', page);
     res.status(200).json(result);
   } catch (error) {
     next(error);
@@ -122,7 +123,7 @@ export async function searchFlights(req: Request, res: Response, next: NextFunct
 export async function getFlightById(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { id } = req.params;
-    console.log('[Flight] getFlightById - id:', id);
+    debugLog('Flight', 'getFlightById - id:', id);
 
     const { data: f, error } = await supabase
       .from('flights')
@@ -138,14 +139,14 @@ export async function getFlightById(req: Request, res: Response, next: NextFunct
 
     if (error) {
       if (error.code === 'PGRST116') {
-        console.log('[Flight] getFlightById - not found:', id);
+        debugLog('Flight', 'getFlightById - not found:', id);
         throw new AppError('Chuyến bay không tồn tại', 404);
       }
       throw new AppError(error.message, 500);
     }
 
     if (!f) {
-      console.log('[Flight] getFlightById - not found:', id);
+      debugLog('Flight', 'getFlightById - not found:', id);
       throw new AppError('Chuyến bay không tồn tại', 404);
     }
 
@@ -173,7 +174,7 @@ export async function getFlightById(req: Request, res: Response, next: NextFunct
         : 0,
     };
 
-    console.log('[Flight] getFlightById - found, available_seats:', flight.available_seats);
+    debugLog('Flight', 'getFlightById - found, available_seats:', flight.available_seats);
     res.status(200).json({ flight });
   } catch (error) {
     next(error);
@@ -183,7 +184,7 @@ export async function getFlightById(req: Request, res: Response, next: NextFunct
 export async function getFlightSeats(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { id } = req.params;
-    console.log('[Flight] getFlightSeats - flightId:', id);
+    debugLog('Flight', 'getFlightSeats - flightId:', id);
 
     // Check flight exists
     const { data: flight, error: flightError } = await supabase
@@ -193,7 +194,7 @@ export async function getFlightSeats(req: Request, res: Response, next: NextFunc
       .single();
 
     if (flightError || !flight) {
-      console.log('[Flight] getFlightSeats - flight not found:', id);
+      debugLog('Flight', 'getFlightSeats - flight not found:', id);
       throw new AppError('Chuyến bay không tồn tại', 404);
     }
 
@@ -208,7 +209,7 @@ export async function getFlightSeats(req: Request, res: Response, next: NextFunc
 
     const seatList = (seats || []) as Seat[];
 
-    console.log('[Flight] getFlightSeats - total seats:', seatList.length, 'available:', seatList.filter(s => s.status === 'available').length);
+    debugLog('Flight', 'getFlightSeats - total seats:', seatList.length, 'available:', seatList.filter(s => s.status === 'available').length);
     res.status(200).json({ seats: seatList });
   } catch (error) {
     next(error);
@@ -218,10 +219,10 @@ export async function getFlightSeats(req: Request, res: Response, next: NextFunc
 export async function createFlight(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const data = req.body as CreateFlightRequest;
-    console.log('[Flight] createFlight - airline:', data.airline_id, 'seats:', data.total_seats);
+    debugLog('Flight', 'createFlight - airline:', data.airline_id, 'seats:', data.total_seats);
 
     if (new Date(data.departure_time) >= new Date(data.arrival_time)) {
-      console.log('[Flight] createFlight - invalid time: departure >= arrival');
+      debugLog('Flight', 'createFlight - invalid time: departure >= arrival');
       throw new AppError('Giờ khởi hành phải trước giờ đến', 400);
     }
 
@@ -236,6 +237,7 @@ export async function createFlight(req: Request, res: Response, next: NextFuncti
     });
 
     if (error) {
+      errorLog('Flight', 'createFlight', 'RPC error:', error.message, 'code:', error.code);
       // FK violation → invalid reference
       if (error.code === '23503') {
         throw new AppError('Tham chiếu không hợp lệ', 400);
@@ -251,7 +253,7 @@ export async function createFlight(req: Request, res: Response, next: NextFuncti
       .select('*')
       .eq('flight_id', flight?.id);
 
-    console.log('[Flight] createFlight - success, flightId:', flight?.id, 'seats:', (seats || []).length);
+    debugLog('Flight', 'createFlight - success, flightId:', flight?.id, 'seats:', (seats || []).length);
     res.status(201).json({ flight, seats: seats || [] });
   } catch (error) {
     next(error);
@@ -262,7 +264,7 @@ export async function updateFlight(req: Request, res: Response, next: NextFuncti
   try {
     const { id } = req.params;
     const data = req.body as UpdateFlightRequest;
-    console.log('[Flight] updateFlight - id:', id, 'fields:', Object.keys(data));
+    debugLog('Flight', 'updateFlight - id:', id, 'fields:', Object.keys(data));
 
     // Validate time constraints
     if (data.departure_time && data.arrival_time) {
@@ -317,6 +319,7 @@ export async function updateFlight(req: Request, res: Response, next: NextFuncti
       .select();
 
     if (error) {
+      errorLog('Flight', 'updateFlight', 'error:', error.message, 'code:', error.code);
       if (error.code === '23503') {
         throw new AppError('Tham chiếu không hợp lệ', 400);
       }
@@ -327,7 +330,7 @@ export async function updateFlight(req: Request, res: Response, next: NextFuncti
       throw new AppError('Chuyến bay không tồn tại', 404);
     }
 
-    console.log('[Flight] updateFlight - success, id:', id);
+    debugLog('Flight', 'updateFlight - success, id:', id);
     res.status(200).json({ flight: updated[0] });
   } catch (error) {
     next(error);
@@ -337,7 +340,7 @@ export async function updateFlight(req: Request, res: Response, next: NextFuncti
 export async function deleteFlight(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { id } = req.params;
-    console.log('[Flight] deleteFlight - id:', id);
+    debugLog('Flight', 'deleteFlight - id:', id);
 
     const { data, error } = await supabase
       .from('flights')
@@ -346,15 +349,16 @@ export async function deleteFlight(req: Request, res: Response, next: NextFuncti
       .select();
 
     if (error) {
+      errorLog('Flight', 'deleteFlight', 'error:', error.message, 'code:', error.code);
       throw new AppError(error.message, 500);
     }
 
     if (!data || data.length === 0) {
-      console.log('[Flight] deleteFlight - not found:', id);
+      debugLog('Flight', 'deleteFlight - not found:', id);
       throw new AppError('Chuyến bay không tồn tại', 404);
     }
 
-    console.log('[Flight] deleteFlight - success, id:', id);
+    debugLog('Flight', 'deleteFlight - success, id:', id);
     res.status(200).json({ message: 'Xóa chuyến bay thành công' });
   } catch (error) {
     next(error);

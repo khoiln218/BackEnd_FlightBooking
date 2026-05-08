@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import supabase from '../config/database';
 import { AppError } from '../shared/utils/AppError';
+import { debugLog, errorLog } from '../shared/utils/debug';
 import { Airport, CreateAirportRequest, UpdateAirportRequest } from './airport.types';
 
 /**
@@ -9,16 +10,19 @@ import { Airport, CreateAirportRequest, UpdateAirportRequest } from './airport.t
  */
 export async function getAllAirports(_req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
+    debugLog('Airport', 'getAllAirports - entry');
+
     const { data, error } = await supabase
       .from('airports')
       .select('id, name, code, city, country')
       .order('city', { ascending: true });
 
     if (error) {
-      console.error('[Airport] getAllAirports - error:', error.message);
+      errorLog('Airport', 'getAllAirports', 'error:', error.message);
       throw new AppError(error.message, 500);
     }
 
+    debugLog('Airport', 'getAllAirports - success, count:', (data ?? []).length);
     res.status(200).json({ data: (data ?? []) as Airport[] });
   } catch (error) {
     next(error);
@@ -32,7 +36,7 @@ export async function getAllAirports(_req: Request, res: Response, next: NextFun
 export async function createAirport(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { name, code, city, country } = req.body as CreateAirportRequest;
-    console.log('[Airport] createAirport - code:', code, 'city:', city);
+    debugLog('Airport', 'createAirport - code:', code, 'city:', city);
 
     const { data, error } = await supabase
       .from('airports')
@@ -41,11 +45,12 @@ export async function createAirport(req: Request, res: Response, next: NextFunct
       .single();
 
     if (error) {
-      console.error('[Airport] createAirport - error:', error.message, 'code:', error.code);
+      errorLog('Airport', 'createAirport', 'error:', error.message, 'code:', error.code);
       if (error.code === '23505') throw new AppError('Mã sân bay đã tồn tại', 409);
       throw new AppError(error.message, 500);
     }
 
+    debugLog('Airport', 'createAirport - success, airportId:', data.id, 'code:', data.code);
     res.status(201).json({ airport: data });
   } catch (error) {
     next(error);
@@ -60,6 +65,7 @@ export async function updateAirport(req: Request, res: Response, next: NextFunct
   try {
     const { id } = req.params;
     const data = req.body as UpdateAirportRequest;
+    debugLog('Airport', 'updateAirport - id:', id, 'fields:', Object.keys(data));
 
     const allowedFields: (keyof UpdateAirportRequest)[] = ['name', 'code', 'city', 'country'];
     const updateData: Record<string, string> = {};
@@ -80,7 +86,7 @@ export async function updateAirport(req: Request, res: Response, next: NextFunct
       .select();
 
     if (error) {
-      console.error('[Airport] updateAirport - error:', error.message, 'code:', error.code);
+      errorLog('Airport', 'updateAirport', 'error:', error.message, 'code:', error.code);
       if (error.code === '23505') throw new AppError('Mã sân bay đã tồn tại', 409);
       throw new AppError(error.message, 500);
     }
@@ -89,6 +95,7 @@ export async function updateAirport(req: Request, res: Response, next: NextFunct
       throw new AppError('Sân bay không tồn tại', 404);
     }
 
+    debugLog('Airport', 'updateAirport - success, airportId:', updated[0].id);
     res.status(200).json({ airport: updated[0] });
   } catch (error) {
     next(error);
@@ -102,6 +109,7 @@ export async function updateAirport(req: Request, res: Response, next: NextFunct
 export async function deleteAirport(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { id } = req.params;
+    debugLog('Airport', 'deleteAirport - id:', id);
 
     const { data, error } = await supabase
       .from('airports')
@@ -110,7 +118,7 @@ export async function deleteAirport(req: Request, res: Response, next: NextFunct
       .select();
 
     if (error) {
-      console.error('[Airport] deleteAirport - error:', error.message, 'code:', error.code);
+      errorLog('Airport', 'deleteAirport', 'error:', error.message, 'code:', error.code);
       if (error.code === '23503') {
         throw new AppError('Không thể xóa sân bay đang có chuyến bay', 409);
       }
@@ -121,6 +129,7 @@ export async function deleteAirport(req: Request, res: Response, next: NextFunct
       throw new AppError('Sân bay không tồn tại', 404);
     }
 
+    debugLog('Airport', 'deleteAirport - success, id:', id);
     res.status(200).json({ message: 'Xóa sân bay thành công' });
   } catch (error) {
     next(error);

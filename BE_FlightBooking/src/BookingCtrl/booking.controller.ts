@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import supabase from '../config/database';
 import { AppError } from '../shared/utils/AppError';
+import { debugLog, errorLog } from '../shared/utils/debug';
 import { CreateBookingRequest, AdminBookingQuery } from './booking.types';
 import { PaginatedResult } from '../shared/types/common.types';
 import { generateBookingCode } from '../shared/utils/helpers';
@@ -11,11 +12,11 @@ export async function createBooking(req: Request, res: Response, next: NextFunct
   try {
     const userId = req.user!.id;
     const { flightId, passengers, seatIds } = req.body as CreateBookingRequest;
-    console.log('[Booking] createBooking - userId:', userId, 'flightId:', flightId, 'seatIds count:', seatIds.length);
+    debugLog('Booking', 'createBooking - userId:', userId, 'flightId:', flightId, 'seatIds count:', seatIds.length);
 
     // Double-check passengers.length === seatIds.length (after validation)
     if (passengers.length !== seatIds.length) {
-      console.log('[Booking] createBooking - passengers/seats mismatch:', passengers.length, '!=', seatIds.length);
+      debugLog('Booking', 'createBooking - passengers/seats mismatch:', passengers.length, '!=', seatIds.length);
       throw new AppError('Số lượng hành khách phải bằng số lượng ghế', 400);
     }
 
@@ -31,13 +32,13 @@ export async function createBooking(req: Request, res: Response, next: NextFunct
 
     if (error) {
       const message = error.message;
-      console.error('[Booking] createBooking - RPC error:', message, 'code:', error.code);
+      errorLog('Booking', 'createBooking', 'RPC error:', message, 'code:', error.code);
       if (message.includes('không tồn tại')) throw new AppError(message, 404);
       if (message.includes('đã được đặt')) throw new AppError(message, 409);
       throw new AppError(message, 500);
     }
 
-    console.log('[Booking] createBooking - success, bookingId:', data.id, 'bookingCode:', data.booking_code, 'totalAmount:', data.total_amount);
+    debugLog('Booking', 'createBooking - success, bookingId:', data.id, 'bookingCode:', data.booking_code, 'totalAmount:', data.total_amount);
     res.status(201).json({ booking: data });
   } catch (error) {
     next(error);
@@ -50,7 +51,7 @@ export async function cancelBooking(req: Request, res: Response, next: NextFunct
   try {
     const userId = req.user!.id;
     const bookingId = Number(req.params.id);
-    console.log('[Booking] cancelBooking - userId:', userId, 'bookingId:', bookingId);
+    debugLog('Booking', 'cancelBooking - userId:', userId, 'bookingId:', bookingId);
 
     const { data, error } = await supabase.rpc('cancel_booking', {
       p_user_id: userId,
@@ -59,13 +60,13 @@ export async function cancelBooking(req: Request, res: Response, next: NextFunct
 
     if (error) {
       const message = error.message;
-      console.error('[Booking] cancelBooking - RPC error:', message, 'code:', error.code);
+      errorLog('Booking', 'cancelBooking', 'RPC error:', message, 'code:', error.code);
       if (message.includes('không tồn tại')) throw new AppError(message, 404);
       if (message.includes('Không thể hủy')) throw new AppError(message, 400);
       throw new AppError(message, 500);
     }
 
-    console.log('[Booking] cancelBooking - success, bookingId:', bookingId);
+    debugLog('Booking', 'cancelBooking - success, bookingId:', bookingId);
     res.status(200).json({ booking: data });
   } catch (error) {
     next(error);
@@ -78,7 +79,7 @@ export async function getBookingHistory(req: Request, res: Response, next: NextF
   try {
     const userId = req.user!.id;
     const page = Number(req.query.page) || 1;
-    console.log('[Booking] getBookingHistory - userId:', userId, 'page:', page);
+    debugLog('Booking', 'getBookingHistory - userId:', userId, 'page:', page);
     const limit = Number(req.query.limit) || 20;
     const offset = (page - 1) * limit;
 
@@ -128,7 +129,7 @@ export async function getBookingHistory(req: Request, res: Response, next: NextF
 
     const total = count ?? 0;
 
-    console.log('[Booking] getBookingHistory - total found:', total, 'page:', page);
+    debugLog('Booking', 'getBookingHistory - total found:', total, 'page:', page);
 
     const result: PaginatedResult<any> = {
       data: bookings,
@@ -151,7 +152,7 @@ export async function getBookingById(req: Request, res: Response, next: NextFunc
   try {
     const userId = req.user!.id;
     const bookingId = Number(req.params.id);
-    console.log('[Booking] getBookingById - userId:', userId, 'bookingId:', bookingId);
+    debugLog('Booking', 'getBookingById - userId:', userId, 'bookingId:', bookingId);
 
     // Get booking with flight info via embedded relations
     const { data: b, error: bookingError } = await supabase
@@ -171,14 +172,14 @@ export async function getBookingById(req: Request, res: Response, next: NextFunc
 
     if (bookingError) {
       if (bookingError.code === 'PGRST116') {
-        console.log('[Booking] getBookingById - not found, bookingId:', bookingId, 'userId:', userId);
+        debugLog('Booking', 'getBookingById - not found, bookingId:', bookingId, 'userId:', userId);
         throw new AppError('Đặt vé không tồn tại', 404);
       }
       throw new AppError(bookingError.message, 500);
     }
 
     if (!b) {
-      console.log('[Booking] getBookingById - not found, bookingId:', bookingId, 'userId:', userId);
+      debugLog('Booking', 'getBookingById - not found, bookingId:', bookingId, 'userId:', userId);
       throw new AppError('Đặt vé không tồn tại', 404);
     }
 
@@ -237,7 +238,7 @@ export async function getBookingById(req: Request, res: Response, next: NextFunc
       paid_at: paymentData?.paid_at ?? null,
     };
 
-    console.log('[Booking] getBookingById - success, bookingId:', bookingId);
+    debugLog('Booking', 'getBookingById - success, bookingId:', bookingId);
     res.status(200).json({ booking: detail });
   } catch (error) {
     next(error);
@@ -250,7 +251,7 @@ export async function getBookingById(req: Request, res: Response, next: NextFunc
 export async function getAllBookings(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const query = req.query as unknown as AdminBookingQuery;
-    console.log('[Booking] getAllBookings - filters: status:', query.status || 'none', 'flightId:', query.flightId || 'none');
+    debugLog('Booking', 'getAllBookings - filters: status:', query.status || 'none', 'flightId:', query.flightId || 'none');
     const page = Number(query.page) || 1;
     const limit = Number(query.limit) || 20;
     const offset = (page - 1) * limit;
@@ -305,7 +306,7 @@ export async function getAllBookings(req: Request, res: Response, next: NextFunc
 
     const total = count ?? 0;
 
-    console.log('[Booking] getAllBookings - total found:', total, 'page:', page);
+    debugLog('Booking', 'getAllBookings - total found:', total, 'page:', page);
 
     const result: PaginatedResult<any> = {
       data: bookings,
@@ -327,7 +328,7 @@ export async function adminUpdateBookingStatus(req: Request, res: Response, next
   try {
     const bookingId = Number(req.params.id);
     const { status } = req.body as { status: string };
-    console.log('[Booking] adminUpdateBookingStatus - bookingId:', bookingId, 'newStatus:', status);
+    debugLog('Booking', 'adminUpdateBookingStatus - bookingId:', bookingId, 'newStatus:', status);
 
     const { data, error } = await supabase
       .from('bookings')
@@ -340,11 +341,11 @@ export async function adminUpdateBookingStatus(req: Request, res: Response, next
     }
 
     if (!data || data.length === 0) {
-      console.log('[Booking] adminUpdateBookingStatus - booking not found:', bookingId);
+      debugLog('Booking', 'adminUpdateBookingStatus - booking not found:', bookingId);
       throw new AppError('Đặt vé không tồn tại', 404);
     }
 
-    console.log('[Booking] adminUpdateBookingStatus - success, bookingId:', bookingId, 'newStatus:', status);
+    debugLog('Booking', 'adminUpdateBookingStatus - success, bookingId:', bookingId, 'newStatus:', status);
     res.status(200).json({ booking: data[0] });
   } catch (error) {
     next(error);
@@ -356,7 +357,7 @@ export async function adminUpdateBookingStatus(req: Request, res: Response, next
 export async function adminCancelFlight(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const flightId = Number(req.params.id);
-    console.log('[Booking] adminCancelFlight - flightId:', flightId);
+    debugLog('Booking', 'adminCancelFlight - flightId:', flightId);
 
     const { data, error } = await supabase.rpc('admin_cancel_flight', {
       p_flight_id: flightId,
@@ -364,14 +365,14 @@ export async function adminCancelFlight(req: Request, res: Response, next: NextF
 
     if (error) {
       const message = error.message;
-      console.error('[Booking] adminCancelFlight - RPC error:', message, 'code:', error.code);
+      errorLog('Booking', 'adminCancelFlight', 'RPC error:', message, 'code:', error.code);
       if (message.includes('không tồn tại')) throw new AppError(message, 404);
       throw new AppError(message, 500);
     }
 
     const cancelledCount = data?.cancelledCount ?? 0;
 
-    console.log('[Booking] adminCancelFlight - success, flightId:', flightId, 'cancelledBookings:', cancelledCount);
+    debugLog('Booking', 'adminCancelFlight - success, flightId:', flightId, 'cancelledBookings:', cancelledCount);
     res.status(200).json({
       message: 'Hủy chuyến bay thành công',
       cancelledBookings: cancelledCount,

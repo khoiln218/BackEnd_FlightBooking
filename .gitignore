@@ -4,3 +4,4 @@ dist/
 Public_BackEnd_FlightBooking/
 supabase/.branches/
 supabase/.temp/
+BE_FlightBooking/logs/
