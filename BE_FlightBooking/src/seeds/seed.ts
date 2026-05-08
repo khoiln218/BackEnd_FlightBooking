@@ -79,6 +79,23 @@ async function seed() {
     if (!toDelete || toDelete.length === 0) break;
 
     const ids = toDelete.map(f => f.id);
+
+    // Xóa FK dependencies trước (theo thứ tự: payments → bookings → flights)
+    // Lấy bookings đang reference các flights này
+    const { data: depBookings } = await supabase
+      .from('bookings')
+      .select('id')
+      .in('flight_id', ids);
+
+    if (depBookings && depBookings.length > 0) {
+      const bookingIds = depBookings.map(b => b.id);
+      // Xóa payments (không có CASCADE)
+      await supabase.from('payments').delete().in('booking_id', bookingIds);
+      // Xóa bookings (passengers tự CASCADE)
+      await supabase.from('bookings').delete().in('id', bookingIds);
+    }
+
+    // Giờ mới xóa được flights (seats sẽ tự CASCADE)
     const { error: deleteErr } = await supabase.from('flights').delete().in('id', ids);
     if (deleteErr) { console.error('❌ delete flights batch:', deleteErr.message); throw deleteErr; }
 
