@@ -33,7 +33,8 @@ export async function searchFlights(req: Request, res: Response, next: NextFunct
       .eq('departure_airport.code', query.departure)
       .eq('arrival_airport.code', query.arrival)
       .gte('departure_time', `${query.departureDate}T00:00:00`)
-      .lt('departure_time', `${query.departureDate}T23:59:59.999`);
+      .lt('departure_time', `${query.departureDate}T23:59:59.999`)
+      .gt('departure_time', new Date().toISOString());
 
     if (query.airline) {
       dbQuery = dbQuery.eq('airlines.code', query.airline);

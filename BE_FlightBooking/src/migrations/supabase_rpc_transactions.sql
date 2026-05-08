@@ -22,9 +22,9 @@ DECLARE
 BEGIN
   -- 1. Verify flight
   SELECT id, base_price, status INTO v_flight
-  FROM flights WHERE id = p_flight_id AND status = 'scheduled';
+  FROM flights WHERE id = p_flight_id AND status = 'scheduled' AND departure_time > NOW();
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'Chuyến bay không tồn tại hoặc đã hủy';
+    RAISE EXCEPTION 'Chuyến bay không tồn tại, đã hủy hoặc đã khởi hành';
   END IF;
 
   -- 2. Check seats available
@@ -121,10 +121,12 @@ DECLARE
   v_payment_id INTEGER;
   v_paid_at TIMESTAMPTZ;
 BEGIN
-  SELECT id, total_amount INTO v_booking
-  FROM bookings WHERE id = p_booking_id AND user_id = p_user_id AND status = 'pending';
+  SELECT b.id, b.total_amount INTO v_booking
+  FROM bookings b JOIN flights f ON b.flight_id = f.id
+  WHERE b.id = p_booking_id AND b.user_id = p_user_id AND b.status = 'pending'
+    AND f.departure_time > NOW();
   IF NOT FOUND THEN
-    RAISE EXCEPTION 'Đặt vé không tồn tại hoặc đã thanh toán';
+    RAISE EXCEPTION 'Đặt vé không tồn tại, đã thanh toán hoặc chuyến bay đã khởi hành';
   END IF;
   IF p_amount != v_booking.total_amount THEN
     RAISE EXCEPTION 'Số tiền không khớp với tổng tiền đặt vé';
