@@ -91,7 +91,8 @@ export async function getBookingHistory(req: Request, res: Response, next: NextF
           airlines!inner(name, code),
           departure_airport:airports!departure_airport_id!inner(code, city),
           arrival_airport:airports!arrival_airport_id!inner(code, city)
-        )
+        ),
+        passengers(seats(seat_number, class))
       `, { count: 'exact' })
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
@@ -119,6 +120,10 @@ export async function getBookingHistory(req: Request, res: Response, next: NextF
       arrival_airport_city: b.flights?.arrival_airport?.city ?? '',
       departure_time: b.flights?.departure_time ?? '',
       arrival_time: b.flights?.arrival_time ?? '',
+      seat_numbers: Array.isArray(b.passengers)
+        ? b.passengers.map((p: any) => p.seats?.seat_number).filter(Boolean)
+        : [],
+      seats_count: Array.isArray(b.passengers) ? b.passengers.length : 0,
     }));
 
     const total = count ?? 0;
@@ -255,7 +260,8 @@ export async function getAllBookings(req: Request, res: Response, next: NextFunc
       .select(`
         *,
         flights!inner(departure_time, arrival_time, airlines!inner(name, code)),
-        users!inner(email, full_name)
+        users!inner(email, full_name),
+        passengers(seats(seat_number, class))
       `, { count: 'exact' });
 
     if (query.status) {
@@ -291,6 +297,10 @@ export async function getAllBookings(req: Request, res: Response, next: NextFunc
       airline_code: b.flights?.airlines?.code ?? '',
       user_email: b.users?.email ?? '',
       user_full_name: b.users?.full_name ?? '',
+      seat_numbers: Array.isArray(b.passengers)
+        ? b.passengers.map((p: any) => p.seats?.seat_number).filter(Boolean)
+        : [],
+      seats_count: Array.isArray(b.passengers) ? b.passengers.length : 0,
     }));
 
     const total = count ?? 0;
