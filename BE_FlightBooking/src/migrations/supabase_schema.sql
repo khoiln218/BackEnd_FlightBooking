@@ -1,7 +1,6 @@
 -- Supabase PostgreSQL Schema Migration
 -- Chuyển đổi từ SQLite sang PostgreSQL cho Flight Booking Backend
 -- Tạo 8 bảng: users, airlines, airports, flights, seats, bookings, passengers, payments
--- Requirements: 2.1, 2.2, 2.3, 2.4
 
 -- ============================================================
 -- TABLES
