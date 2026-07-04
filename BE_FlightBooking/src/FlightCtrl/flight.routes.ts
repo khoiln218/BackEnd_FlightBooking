@@ -7,6 +7,7 @@ import {
 } from './flight.validator';
 import {
   searchFlights,
+  getAllFlightsAdmin,
   getFlightById,
   getFlightSeats,
   createFlight,
@@ -30,6 +31,9 @@ flightRoutes.get('/:id/seats', getFlightSeats);
 
 // Admin routes — mounted at /api/admin
 const adminFlightRoutes = Router();
+
+// GET /api/admin/flights
+adminFlightRoutes.get('/flights', authMiddleware, authorize('admin'), getAllFlightsAdmin);
 
 // POST /api/admin/flights
 adminFlightRoutes.post('/flights', authMiddleware, authorize('admin'), createFlightValidation, handleValidationErrors, createFlight);

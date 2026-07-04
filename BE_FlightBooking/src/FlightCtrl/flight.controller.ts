@@ -4,6 +4,7 @@ import { AppError } from '../shared/utils/AppError';
 import { debugLog, errorLog } from '../shared/utils/debug';
 import {
   FlightSearchQuery,
+  AdminFlightQuery,
   FlightDetail,
   Seat,
   CreateFlightRequest,
@@ -115,6 +116,88 @@ export async function searchFlights(req: Request, res: Response, next: NextFunct
     };
 
     debugLog('Flight', 'searchFlights - found:', total, 'flights, page:', page);
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function getAllFlightsAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const query = req.query as unknown as AdminFlightQuery;
+    debugLog('Flight', 'getAllFlightsAdmin - airlineId:', query.airlineId || 'none', 'status:', query.status || 'none');
+    const page = Number(query.page) || 1;
+    const limit = Number(query.limit) || 20;
+    const offset = (page - 1) * limit;
+
+    let dbQuery = supabase
+      .from('flights')
+      .select(`
+        *,
+        airlines!inner(name, code),
+        departure_airport:airports!departure_airport_id!inner(name, code, city),
+        arrival_airport:airports!arrival_airport_id!inner(name, code, city),
+        seats!left(id, status)
+      `, { count: 'exact' });
+
+    if (query.airlineId) {
+      dbQuery = dbQuery.eq('airline_id', Number(query.airlineId));
+    }
+    if (query.status) {
+      dbQuery = dbQuery.eq('status', query.status);
+    }
+    if (query.departureAirportId) {
+      dbQuery = dbQuery.eq('departure_airport_id', Number(query.departureAirportId));
+    }
+    if (query.arrivalAirportId) {
+      dbQuery = dbQuery.eq('arrival_airport_id', Number(query.arrivalAirportId));
+    }
+
+    dbQuery = dbQuery
+      .order('departure_time', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    const { data, error, count } = await dbQuery;
+
+    if (error) {
+      throw new AppError(error.message, 500);
+    }
+
+    const flights: FlightDetail[] = (data || []).map((f: any) => ({
+      id: f.id,
+      airline_id: f.airline_id,
+      departure_airport_id: f.departure_airport_id,
+      arrival_airport_id: f.arrival_airport_id,
+      departure_time: f.departure_time,
+      arrival_time: f.arrival_time,
+      base_price: f.base_price,
+      total_seats: f.total_seats,
+      status: f.status,
+      created_at: f.created_at,
+      airline_name: f.airlines?.name ?? '',
+      airline_code: f.airlines?.code ?? '',
+      departure_airport_name: f.departure_airport?.name ?? '',
+      departure_airport_code: f.departure_airport?.code ?? '',
+      departure_airport_city: f.departure_airport?.city ?? '',
+      arrival_airport_name: f.arrival_airport?.name ?? '',
+      arrival_airport_code: f.arrival_airport?.code ?? '',
+      arrival_airport_city: f.arrival_airport?.city ?? '',
+      available_seats: Array.isArray(f.seats)
+        ? f.seats.filter((s: any) => s.status === 'available').length
+        : 0,
+    }));
+
+    const total = count ?? 0;
+
+    const result: PaginatedResult<FlightDetail> = {
+      data: flights,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+
+    debugLog('Flight', 'getAllFlightsAdmin - found:', total, 'flights, page:', page);
     res.status(200).json(result);
   } catch (error) {
     next(error);

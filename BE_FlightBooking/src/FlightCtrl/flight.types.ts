@@ -10,6 +10,15 @@ export interface FlightSearchQuery {
   limit?: number;
 }
 
+export interface AdminFlightQuery {
+  airlineId?: number;
+  status?: 'scheduled' | 'delayed' | 'cancelled' | 'completed';
+  departureAirportId?: number;
+  arrivalAirportId?: number;
+  page?: number;
+  limit?: number;
+}
+
 export interface Flight {
   id: number;
   airline_id: number;
