@@ -6,7 +6,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { errorHandler } from './shared/middlewares/error.middleware';
-import authRoutes from './Auth/auth.routes';
+import authRoutes, { adminCustomerRoutes } from './Auth/auth.routes';
 import flightRoutes, { adminFlightRoutes } from './FlightCtrl/flight.routes';
 import bookingRoutes, { adminBookingRoutes } from './BookingCtrl/booking.routes';
 import paymentRoutes from './PaymentCtrl/payment.routes';
@@ -58,6 +58,7 @@ app.use('/api/admin', adminFlightRoutes);
 app.use('/api/admin', adminBookingRoutes);
 app.use('/api/admin', adminAirportRoutes);
 app.use('/api/admin', adminAirlineRoutes);
+app.use('/api/admin', adminCustomerRoutes);
 app.use('/api/admin/reports', reportRoutes);
 
 // Global error handler (must be last middleware)

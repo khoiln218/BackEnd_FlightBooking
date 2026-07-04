@@ -34,3 +34,20 @@ export interface ChangePasswordRequest {
   currentPassword: string;
   newPassword: string;
 }
+
+export interface AdminCustomerQuery {
+  search?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface AdminCustomerModel {
+  id: number;
+  email: string;
+  full_name: string;
+  phone: string;
+  created_at: string;
+  bookings_count: number;
+  total_spent: number;
+  last_booking_at: string | null;
+}

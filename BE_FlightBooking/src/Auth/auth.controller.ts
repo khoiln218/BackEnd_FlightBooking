@@ -4,7 +4,16 @@ import jwt from 'jsonwebtoken';
 import supabase from '../config/database';
 import { AppError } from '../shared/utils/AppError';
 import { debugLog } from '../shared/utils/debug';
-import { RegisterRequest, LoginRequest, ChangePasswordRequest, UserProfile, JwtPayload } from './auth.types';
+import {
+  RegisterRequest,
+  LoginRequest,
+  ChangePasswordRequest,
+  UserProfile,
+  JwtPayload,
+  AdminCustomerQuery,
+  AdminCustomerModel,
+} from './auth.types';
+import { PaginatedResult } from '../shared/types/common.types';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret';
 
@@ -175,6 +184,96 @@ export async function changePassword(req: Request, res: Response, next: NextFunc
 
     debugLog('Auth', 'changePassword - success, userId:', userId);
     res.status(200).json({ message: 'Đổi mật khẩu thành công' });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * GET /api/admin/customers — Admin
+ * Trả danh sách khách hàng (role='customer'), kèm số vé đã đặt / tổng chi tiêu / lần đặt gần nhất.
+ */
+export async function getAllCustomers(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const query = req.query as unknown as AdminCustomerQuery;
+    debugLog('Auth', 'getAllCustomers - search:', query.search || 'none');
+    const page = Number(query.page) || 1;
+    const limit = Number(query.limit) || 20;
+    const offset = (page - 1) * limit;
+
+    let dbQuery = supabase
+      .from('users')
+      .select('id, email, full_name, phone, created_at', { count: 'exact' })
+      .eq('role', 'customer');
+
+    if (query.search) {
+      const term = query.search.replace(/[%,]/g, '');
+      dbQuery = dbQuery.or(`full_name.ilike.%${term}%,email.ilike.%${term}%`);
+    }
+
+    dbQuery = dbQuery
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    const { data: users, error, count } = await dbQuery;
+
+    if (error) {
+      throw new AppError(error.message, 500);
+    }
+
+    const userIds = (users || []).map((u) => u.id);
+
+    const bookingStats = new Map<number, { count: number; spent: number; lastAt: string | null }>();
+
+    if (userIds.length > 0) {
+      const { data: bookings, error: bookingsError } = await supabase
+        .from('bookings')
+        .select('user_id, status, total_amount, created_at')
+        .in('user_id', userIds);
+
+      if (bookingsError) {
+        throw new AppError(bookingsError.message, 500);
+      }
+
+      for (const b of bookings || []) {
+        const stat = bookingStats.get(b.user_id) ?? { count: 0, spent: 0, lastAt: null };
+        stat.count += 1;
+        if (b.status !== 'cancelled') {
+          stat.spent += b.total_amount;
+        }
+        if (!stat.lastAt || new Date(b.created_at) > new Date(stat.lastAt)) {
+          stat.lastAt = b.created_at;
+        }
+        bookingStats.set(b.user_id, stat);
+      }
+    }
+
+    const customers: AdminCustomerModel[] = (users || []).map((u) => {
+      const stat = bookingStats.get(u.id) ?? { count: 0, spent: 0, lastAt: null };
+      return {
+        id: u.id,
+        email: u.email,
+        full_name: u.full_name,
+        phone: u.phone,
+        created_at: u.created_at,
+        bookings_count: stat.count,
+        total_spent: stat.spent,
+        last_booking_at: stat.lastAt,
+      };
+    });
+
+    const total = count ?? 0;
+
+    const result: PaginatedResult<AdminCustomerModel> = {
+      data: customers,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
+
+    debugLog('Auth', 'getAllCustomers - found:', total, 'customers, page:', page);
+    res.status(200).json(result);
   } catch (error) {
     next(error);
   }
