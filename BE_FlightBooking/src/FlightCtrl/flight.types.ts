@@ -15,6 +15,8 @@ export interface AdminFlightQuery {
   status?: 'scheduled' | 'delayed' | 'cancelled' | 'completed';
   departureAirportId?: number;
   arrivalAirportId?: number;
+  departureDateFrom?: string;
+  departureDateTo?: string;
   page?: number;
   limit?: number;
 }

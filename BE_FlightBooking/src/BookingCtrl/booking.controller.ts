@@ -88,7 +88,7 @@ export async function getBookingHistory(req: Request, res: Response, next: NextF
       .select(`
         *,
         flights!inner(
-          departure_time, arrival_time,
+          departure_time, arrival_time, status,
           airlines!inner(name, code),
           departure_airport:airports!departure_airport_id!inner(code, city),
           arrival_airport:airports!arrival_airport_id!inner(code, city)
@@ -121,6 +121,7 @@ export async function getBookingHistory(req: Request, res: Response, next: NextF
       arrival_airport_city: b.flights?.arrival_airport?.city ?? '',
       departure_time: b.flights?.departure_time ?? '',
       arrival_time: b.flights?.arrival_time ?? '',
+      flight_status: b.flights?.status ?? '',
       seat_numbers: Array.isArray(b.passengers)
         ? b.passengers.map((p: any) => p.seats?.seat_number).filter(Boolean)
         : [],

@@ -152,6 +152,12 @@ export async function getAllFlightsAdmin(req: Request, res: Response, next: Next
     if (query.arrivalAirportId) {
       dbQuery = dbQuery.eq('arrival_airport_id', Number(query.arrivalAirportId));
     }
+    if (query.departureDateFrom) {
+      dbQuery = dbQuery.gte('departure_time', `${query.departureDateFrom}T00:00:00`);
+    }
+    if (query.departureDateTo) {
+      dbQuery = dbQuery.lt('departure_time', `${query.departureDateTo}T23:59:59.999`);
+    }
 
     dbQuery = dbQuery
       .order('departure_time', { ascending: false })
