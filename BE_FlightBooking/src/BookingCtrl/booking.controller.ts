@@ -260,7 +260,12 @@ export async function getAllBookings(req: Request, res: Response, next: NextFunc
       .from('bookings')
       .select(`
         *,
-        flights!inner(departure_time, arrival_time, airlines!inner(name, code)),
+        flights!inner(
+          departure_time, arrival_time,
+          airlines!inner(name, code),
+          departure_airport:airports!departure_airport_id!inner(code, city),
+          arrival_airport:airports!arrival_airport_id!inner(code, city)
+        ),
         users!inner(email, full_name),
         passengers(seats(seat_number, class))
       `, { count: 'exact' });
@@ -270,6 +275,9 @@ export async function getAllBookings(req: Request, res: Response, next: NextFunc
     }
     if (query.flightId) {
       dbQuery = dbQuery.eq('flight_id', Number(query.flightId));
+    }
+    if (query.userId) {
+      dbQuery = dbQuery.eq('user_id', Number(query.userId));
     }
 
     dbQuery = dbQuery
@@ -296,6 +304,10 @@ export async function getAllBookings(req: Request, res: Response, next: NextFunc
       arrival_time: b.flights?.arrival_time ?? '',
       airline_name: b.flights?.airlines?.name ?? '',
       airline_code: b.flights?.airlines?.code ?? '',
+      departure_airport_code: b.flights?.departure_airport?.code ?? '',
+      departure_airport_city: b.flights?.departure_airport?.city ?? '',
+      arrival_airport_code: b.flights?.arrival_airport?.code ?? '',
+      arrival_airport_city: b.flights?.arrival_airport?.city ?? '',
       user_email: b.users?.email ?? '',
       user_full_name: b.users?.full_name ?? '',
       seat_numbers: Array.isArray(b.passengers)
