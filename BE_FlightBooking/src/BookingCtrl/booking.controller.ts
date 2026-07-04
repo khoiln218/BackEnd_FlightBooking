@@ -279,6 +279,31 @@ export async function getAllBookings(req: Request, res: Response, next: NextFunc
     if (query.userId) {
       dbQuery = dbQuery.eq('user_id', Number(query.userId));
     }
+    if (query.airlineId) {
+      dbQuery = dbQuery.eq('flights.airline_id', Number(query.airlineId));
+    }
+    if (query.departureDateFrom) {
+      dbQuery = dbQuery.gte('flights.departure_time', `${query.departureDateFrom}T00:00:00`);
+    }
+    if (query.departureDateTo) {
+      dbQuery = dbQuery.lt('flights.departure_time', `${query.departureDateTo}T23:59:59.999`);
+    }
+    if (query.search) {
+      const term = query.search.replace(/[%,]/g, '');
+
+      const { data: matchingUsers } = await supabase
+        .from('users')
+        .select('id')
+        .or(`full_name.ilike.%${term}%,email.ilike.%${term}%`);
+
+      const matchingUserIds = (matchingUsers || []).map((u) => u.id);
+
+      const orParts = [`booking_code.ilike.%${term}%`];
+      if (matchingUserIds.length > 0) {
+        orParts.push(`user_id.in.(${matchingUserIds.join(',')})`);
+      }
+      dbQuery = dbQuery.or(orParts.join(','));
+    }
 
     dbQuery = dbQuery
       .order('created_at', { ascending: false })

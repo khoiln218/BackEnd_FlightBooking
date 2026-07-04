@@ -53,4 +53,8 @@ export interface AdminBookingQuery extends PaginationQuery {
   status?: BookingStatus;
   flightId?: number;
   userId?: number;
+  airlineId?: number;
+  departureDateFrom?: string;
+  departureDateTo?: string;
+  search?: string;
 }
