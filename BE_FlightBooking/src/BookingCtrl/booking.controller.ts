@@ -96,7 +96,7 @@ export async function getBookingHistory(req: Request, res: Response, next: NextF
         passengers(seats(seat_number, class))
       `, { count: 'exact' })
       .eq('user_id', userId)
-      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
       .range(offset, offset + limit - 1);
 
     if (error) {
@@ -211,7 +211,7 @@ export async function getBookingById(req: Request, res: Response, next: NextFunc
       .from('payments')
       .select('status, method, transaction_code, paid_at')
       .eq('booking_id', bookingId)
-      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
       .limit(1)
       .maybeSingle();
 

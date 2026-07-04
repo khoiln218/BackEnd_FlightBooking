@@ -62,7 +62,7 @@ export async function getPaymentByBookingId(req: Request, res: Response, next: N
       .from('payments')
       .select('*')
       .eq('booking_id', bookingId)
-      .order('created_at', { ascending: false })
+      .order('id', { ascending: false })
       .limit(1)
       .maybeSingle();
 

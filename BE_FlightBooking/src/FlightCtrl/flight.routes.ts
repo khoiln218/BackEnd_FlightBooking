@@ -3,6 +3,7 @@ import {
   searchFlightValidation,
   createFlightValidation,
   updateFlightValidation,
+  updateFlightStatusValidation,
   handleValidationErrors,
 } from './flight.validator';
 import {
@@ -12,6 +13,7 @@ import {
   getFlightSeats,
   createFlight,
   updateFlight,
+  updateFlightStatus,
   deleteFlight,
 } from './flight.controller';
 import { authMiddleware } from '../shared/middlewares/auth.middleware';
@@ -40,6 +42,9 @@ adminFlightRoutes.post('/flights', authMiddleware, authorize('admin'), createFli
 
 // PUT /api/admin/flights/:id
 adminFlightRoutes.put('/flights/:id', authMiddleware, authorize('admin'), updateFlightValidation, handleValidationErrors, updateFlight);
+
+// PUT /api/admin/flights/:id/status
+adminFlightRoutes.put('/flights/:id/status', authMiddleware, authorize('admin'), updateFlightStatusValidation, handleValidationErrors, updateFlightStatus);
 
 // DELETE /api/admin/flights/:id
 adminFlightRoutes.delete('/flights/:id', authMiddleware, authorize('admin'), deleteFlight);

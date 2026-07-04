@@ -11,6 +11,7 @@ export interface FlightSearchQuery {
 }
 
 export interface AdminFlightQuery {
+  id?: number;
   airlineId?: number;
   status?: 'scheduled' | 'delayed' | 'cancelled' | 'completed';
   departureAirportId?: number;
@@ -66,6 +67,10 @@ export interface CreateFlightRequest {
 }
 
 export type UpdateFlightRequest = Partial<CreateFlightRequest>;
+
+export interface UpdateFlightStatusRequest {
+  status: 'scheduled' | 'delayed' | 'completed';
+}
 
 export interface SeatConfig {
   seat_number: string;

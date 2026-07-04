@@ -126,3 +126,9 @@ export const updateFlightValidation = [
     return true;
   }),
 ];
+
+export const updateFlightStatusValidation = [
+  body('status')
+    .notEmpty().withMessage('status là bắt buộc')
+    .isIn(['scheduled', 'delayed', 'completed']).withMessage('status phải là scheduled, delayed hoặc completed'),
+];

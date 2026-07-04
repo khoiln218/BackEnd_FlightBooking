@@ -9,6 +9,7 @@ import {
   Seat,
   CreateFlightRequest,
   UpdateFlightRequest,
+  UpdateFlightStatusRequest,
 } from './flight.types';
 import { PaginatedResult } from '../shared/types/common.types';
 
@@ -140,6 +141,9 @@ export async function getAllFlightsAdmin(req: Request, res: Response, next: Next
         seats!left(id, status)
       `, { count: 'exact' });
 
+    if (query.id) {
+      dbQuery = dbQuery.eq('id', Number(query.id));
+    }
     if (query.airlineId) {
       dbQuery = dbQuery.eq('airline_id', Number(query.airlineId));
     }
@@ -160,7 +164,7 @@ export async function getAllFlightsAdmin(req: Request, res: Response, next: Next
     }
 
     dbQuery = dbQuery
-      .order('departure_time', { ascending: false })
+      .order('id', { ascending: false })
       .range(offset, offset + limit - 1);
 
     const { data, error, count } = await dbQuery;
@@ -422,6 +426,72 @@ export async function updateFlight(req: Request, res: Response, next: NextFuncti
 
     debugLog('Flight', 'updateFlight - success, id:', id);
     res.status(200).json({ flight: updated[0] });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * PUT /api/admin/flights/:id/status — Admin
+ * Đổi trạng thái chuyến bay đang 'scheduled'/'delayed' sang 'scheduled', 'delayed' hoặc 'completed'.
+ * Khi chuyển sang 'completed', toàn bộ vé đã xác nhận ('confirmed') của chuyến cũng chuyển sang 'completed'.
+ * Hủy chuyến (cancelled) phải đi qua adminCancelFlight (BookingCtrl) vì còn phải hủy vé liên quan.
+ */
+export async function updateFlightStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const { id } = req.params;
+    const { status } = req.body as UpdateFlightStatusRequest;
+    debugLog('Flight', 'updateFlightStatus - id:', id, 'status:', status);
+
+    const { data: existing, error: fetchError } = await supabase
+      .from('flights')
+      .select('status')
+      .eq('id', id)
+      .single();
+
+    if (fetchError || !existing) {
+      throw new AppError('Chuyến bay không tồn tại', 404);
+    }
+
+    if (existing.status !== 'scheduled' && existing.status !== 'delayed') {
+      throw new AppError('Chỉ có thể đổi trạng thái chuyến bay đang lên lịch hoặc hoãn', 400);
+    }
+
+    const { data: updated, error } = await supabase
+      .from('flights')
+      .update({ status })
+      .eq('id', id)
+      .select();
+
+    if (error) {
+      errorLog('Flight', 'updateFlightStatus', 'error:', error.message, 'code:', error.code);
+      throw new AppError(error.message, 500);
+    }
+
+    if (!updated || updated.length === 0) {
+      throw new AppError('Chuyến bay không tồn tại', 404);
+    }
+
+    // Khi chuyến bay hoàn thành, toàn bộ vé đã xác nhận của chuyến cũng chuyển sang hoàn thành
+    let completedBookings = 0;
+    if (status === 'completed') {
+      const { data: completed, error: bookingsError } = await supabase
+        .from('bookings')
+        .update({ status: 'completed', updated_at: new Date().toISOString() })
+        .eq('flight_id', id)
+        .eq('status', 'confirmed')
+        .select('id');
+
+      if (bookingsError) {
+        errorLog('Flight', 'updateFlightStatus', 'bookings update error:', bookingsError.message, 'code:', bookingsError.code);
+        throw new AppError(bookingsError.message, 500);
+      }
+
+      completedBookings = completed?.length ?? 0;
+    }
+
+    debugLog('Flight', 'updateFlightStatus - success, id:', id, 'status:', status, 'completedBookings:', completedBookings);
+    res.status(200).json({ flight: updated[0], completedBookings });
   } catch (error) {
     next(error);
   }
