@@ -10,8 +10,8 @@ export async function getRevenueByAirline(req: Request, res: Response, next: Nex
     debugLog('Report', 'getRevenueByAirline - startDate:', startDate, 'endDate:', endDate);
 
     const { data, error } = await supabase.rpc('get_revenue_by_airline', {
-      p_start_date: startDate,
-      p_end_date: endDate,
+      p_start_date: `${startDate}T00:00:00`,
+      p_end_date: `${endDate}T23:59:59.999`,
     });
 
     if (error) {
@@ -32,8 +32,8 @@ export async function getRevenueByRoute(req: Request, res: Response, next: NextF
     debugLog('Report', 'getRevenueByRoute - startDate:', startDate, 'endDate:', endDate);
 
     const { data, error } = await supabase.rpc('get_revenue_by_route', {
-      p_start_date: startDate,
-      p_end_date: endDate,
+      p_start_date: `${startDate}T00:00:00`,
+      p_end_date: `${endDate}T23:59:59.999`,
     });
 
     if (error) {
