@@ -4,6 +4,55 @@ import { AppError } from '../shared/utils/AppError';
 import { debugLog, errorLog } from '../shared/utils/debug';
 import { PaymentRequest } from './payment.types';
 import { generateTransactionCode } from '../shared/utils/helpers';
+import { sendMail } from '../shared/utils/mailer';
+import { buildBookingConfirmationEmail } from '../shared/utils/bookingEmail';
+
+async function sendBookingConfirmationEmail(bookingId: number): Promise<void> {
+  try {
+    const { data: booking, error } = await supabase
+      .from('bookings')
+      .select(`
+        booking_code, total_amount,
+        users!inner(email),
+        flights!inner(
+          departure_time, arrival_time,
+          airlines!inner(name),
+          departure_airport:airports!departure_airport_id!inner(code, city),
+          arrival_airport:airports!arrival_airport_id!inner(code, city)
+        ),
+        passengers(full_name, seats(seat_number, class))
+      `)
+      .eq('id', bookingId)
+      .single();
+
+    if (error || !booking) {
+      errorLog('Payment', 'sendBookingConfirmationEmail', 'không lấy được thông tin đặt vé:', error?.message);
+      return;
+    }
+
+    const b = booking as any;
+    const { subject, html } = buildBookingConfirmationEmail({
+      bookingCode: b.booking_code,
+      airlineName: b.flights?.airlines?.name ?? '',
+      departureAirportCode: b.flights?.departure_airport?.code ?? '',
+      departureAirportCity: b.flights?.departure_airport?.city ?? '',
+      arrivalAirportCode: b.flights?.arrival_airport?.code ?? '',
+      arrivalAirportCity: b.flights?.arrival_airport?.city ?? '',
+      departureTime: b.flights?.departure_time ?? '',
+      arrivalTime: b.flights?.arrival_time ?? '',
+      totalAmount: Number(b.total_amount),
+      passengers: (b.passengers || []).map((p: any) => ({
+        fullName: p.full_name,
+        seatNumber: p.seats?.seat_number ?? '',
+        seatClass: p.seats?.class ?? '',
+      })),
+    });
+
+    await sendMail({ to: b.users?.email, subject, html });
+  } catch (error) {
+    errorLog('Payment', 'sendBookingConfirmationEmail', 'lỗi khi gửi mail xác nhận đặt vé:', error);
+  }
+}
 
 export async function processPayment(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
@@ -32,6 +81,9 @@ export async function processPayment(req: Request, res: Response, next: NextFunc
     }
 
     debugLog('Payment', 'processPayment - success, paymentId:', data.id, 'transactionCode:', data.transaction_code);
+
+    void sendBookingConfirmationEmail(bookingId);
+
     res.status(200).json({ payment: data });
   } catch (error) {
     next(error);
