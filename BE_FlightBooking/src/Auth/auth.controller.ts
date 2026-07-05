@@ -206,6 +206,9 @@ export async function getAllCustomers(req: Request, res: Response, next: NextFun
       .select('id, email, full_name, phone, created_at', { count: 'exact' })
       .eq('role', 'customer');
 
+    if (query.id) {
+      dbQuery = dbQuery.eq('id', Number(query.id));
+    }
     if (query.search) {
       const term = query.search.replace(/[%,]/g, '');
       dbQuery = dbQuery.or(`full_name.ilike.%${term}%,email.ilike.%${term}%`);

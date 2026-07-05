@@ -36,6 +36,7 @@ export interface ChangePasswordRequest {
 }
 
 export interface AdminCustomerQuery {
+  id?: number;
   search?: string;
   page?: number;
   limit?: number;
