@@ -271,6 +271,9 @@ export async function getAllBookings(req: Request, res: Response, next: NextFunc
         passengers(seats(seat_number, class))
       `, { count: 'exact' });
 
+    if (query.id) {
+      dbQuery = dbQuery.eq('id', Number(query.id));
+    }
     if (query.status) {
       dbQuery = dbQuery.eq('status', query.status);
     }

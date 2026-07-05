@@ -50,6 +50,7 @@ export interface BookingDetail extends Booking {
 }
 
 export interface AdminBookingQuery extends PaginationQuery {
+  id?: number;
   status?: BookingStatus;
   flightId?: number;
   userId?: number;
